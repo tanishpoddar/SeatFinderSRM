@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 99%;
+    --foreground: 220 10% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 10% 15%;
+    --primary: 211 90% 45%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 220 13% 91%;
+    --secondary-foreground: 220 13% 9%;
+    --muted: 220 13% 94%;
+    --muted-foreground: 220 13% 45%;
+    --accent: 45 95% 51%;
+    --accent-foreground: 45 100% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 211 90% 45%;
+    --radius: 0.75rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    
+    --sidebar-background: 220 15% 10%;
+    --sidebar-foreground: 220 20% 95%;
+    --sidebar-border: 220 13% 20%;
+    --sidebar-ring: 211 90% 50%;
+    --sidebar-accent: 211 90% 50%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-primary: 211 90% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+  }
+
+  .dark {
+    --background: 220 15% 8%;
+    --foreground: 220 15% 95%;
+    --card: 220 15% 12%;
+    --card-foreground: 220 15% 95%;
+    --popover: 220 15% 12%;
+    --popover-foreground: 220 15% 95%;
+    --primary: 211 90% 55%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 220 13% 20%;
+    --secondary-foreground: 220 13% 98%;
+    --muted: 220 13% 20%;
+    --muted-foreground: 220 13% 65%;
+    --accent: 45 95% 55%;
+    --accent-foreground: 45 100% 15%;
+    --destructive: 0 72.2% 50.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 13% 25%;
+    --input: 220 13% 25%;
+    --ring: 211 90% 55%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    
+    /* With inset sidebar, these can match the page for a cohesive look */
+    --sidebar-background: 220 15% 8%;
+    --sidebar-foreground: 220 15% 95%;
+    --sidebar-border: 220 13% 25%;
+    --sidebar-ring: 211 90% 55%;
+    --sidebar-accent: 211 90% 55%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-primary: 211 90% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-image: radial-gradient(circle at top left, hsl(var(--primary) / 0.05), transparent 30%), radial-gradient(circle at bottom right, hsl(var(--accent) / 0.05), transparent 30%);
+    background-attachment: fixed;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background) / 0.5);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.5);
+    border-radius: 10px;
+    transition: background 0.2s ease-in-out;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary));
+  }
+}
