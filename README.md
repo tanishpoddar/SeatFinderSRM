@@ -14,13 +14,7 @@ A modern, real-time seat booking system for university libraries, built with Nex
 - **Personal Dashboard**: View active booking and booking history.
 - **Modern, Responsive UI**: Fluid animations, light/dark mode, and mobile-friendly design.
 
-## Tech Stack
-
-- **Framework:** [Next.js](https://nextjs.org/)
-- **UI Library:** [React](https://reactjs.org/)
-- **Styling:** [Tailwind CSS](https://tailwindcss.com/)
-- **Component Library:** [Shadcn/UI](https://ui.shadcn.com/)
-- **Database & Auth:** [Firebase](https://firebase.google.com/)
+  
 - **Icons:** [Lucide React](https://lucide.dev/)
 - **Language:** [TypeScript](https://www.typescriptlang.org/)
 
