@@ -14,10 +14,6 @@ A modern, real-time seat booking system for university libraries, built with Nex
 - **Personal Dashboard**: View active booking and booking history.
 - **Modern, Responsive UI**: Fluid animations, light/dark mode, and mobile-friendly design.
 
-  
-- **Icons:** [Lucide React](https://lucide.dev/)
-- **Language:** [TypeScript](https://www.typescriptlang.org/)
-
 ## Getting Started
 
 ### Prerequisites
