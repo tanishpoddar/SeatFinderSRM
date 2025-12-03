@@ -121,8 +121,13 @@ export function BookingHistory() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
-    const bookingsRef = query(ref(db, `bookings/${user.uid}`), orderByChild('bookingTime'));
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    
+    const bookingsRef = ref(db, `bookings/${user.uid}`);
+    
     const listener = onValue(bookingsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -130,10 +135,20 @@ export function BookingHistory() {
           id: key,
           ...(value as Omit<Booking, 'id'>)
         }));
-        setBookings(bookingsList.reverse());
+        // Sort by booking time, newest first
+        bookingsList.sort((a, b) => {
+          const timeA = new Date(a.bookingTime).getTime();
+          const timeB = new Date(b.bookingTime).getTime();
+          return timeB - timeA;
+        });
+        setBookings(bookingsList);
       } else {
         setBookings([]);
       }
+      setLoading(false);
+    }, (error) => {
+      console.error("Failed to fetch bookings:", error);
+      setBookings([]);
       setLoading(false);
     });
 
@@ -158,12 +173,13 @@ export function BookingHistory() {
   const activeBooking = bookings.find(b => b.status === 'booked' || b.status === 'occupied');
 
   return (
-    <>
+    <div className="space-y-6">
       {activeBooking && <ActiveBookingCard booking={activeBooking} />}
-      <Card className="shadow-lg">
+      
+      <Card>
         <CardHeader>
           <CardTitle>Booking History</CardTitle>
-          <CardDescription>A record of all your past seat bookings.</CardDescription>
+          <CardDescription>Your past and current seat bookings</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -191,13 +207,18 @@ export function BookingHistory() {
                     </TableRow>
                   ))
                 ) : bookings.length > 0 ? (
-                  bookings.map((booking) => (
+                  bookings.map((booking) => {
+                    const bookingDate = new Date(booking.bookingTime);
+                    const entryDate = booking.entryTime ? new Date(booking.entryTime) : null;
+                    const exitDate = booking.exitTime ? new Date(booking.exitTime) : null;
+                    
+                    return (
                     <TableRow key={booking.id}>
                       <TableCell className="font-medium">{booking.seatId}</TableCell>
-                      <TableCell>{format(new Date(booking.bookingTime), "PPp")}</TableCell>
+                      <TableCell>{!isNaN(bookingDate.getTime()) ? format(bookingDate, "PPp") : '—'}</TableCell>
                       <TableCell>{booking.duration ? `${booking.duration} mins` : 'N/A'}</TableCell>
-                      <TableCell>{booking.entryTime ? format(new Date(booking.entryTime), "p") : '—'}</TableCell>
-                      <TableCell>{booking.exitTime ? format(new Date(booking.exitTime), "p") : '—'}</TableCell>
+                      <TableCell>{entryDate && !isNaN(entryDate.getTime()) ? format(entryDate, "p") : '—'}</TableCell>
+                      <TableCell>{exitDate && !isNaN(exitDate.getTime()) ? format(exitDate, "p") : '—'}</TableCell>
                       <TableCell className="text-right">
                         <Badge 
                           variant={getBadgeVariant(booking.status)}
@@ -210,7 +231,8 @@ export function BookingHistory() {
                         </Badge>
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">
@@ -223,6 +245,6 @@ export function BookingHistory() {
           </div>
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }

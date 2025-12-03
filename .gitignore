@@ -16,6 +16,11 @@
 # next.js
 /.next/
 /out/
+/.genkit/
+
+# editor
+.vscode
+/.vscode/
 
 # production
 /build
@@ -37,9 +42,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# genkit
 .genkit/*
-.env*
 
-# firebase
-firebase-debug.log
-firestore-debug.log
+# env files
+.env*

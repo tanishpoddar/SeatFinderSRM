@@ -66,41 +66,65 @@ export function SeatMap() {
             const seatPath = `seats/${floor}/${seatId}`;
 
             // Case 1: Handle 'booked' seats that were not confirmed in time
-            if (seatData.status === 'booked' && seatData.bookedAt && seatData.bookedBy && seatData.bookingId) {
-              if ((now - seatData.bookedAt) > BOOKING_EXPIRY_MS) {
+            if (seatData.status === 'booked') {
+              // If bookedAt is missing or invalid, free the seat immediately
+              if (!seatData.bookedAt || !seatData.bookedBy || !seatData.bookingId) {
+                updates[`${seatPath}/status`] = 'available';
+                updates[`${seatPath}/bookedBy`] = null;
+                updates[`${seatPath}/bookedAt`] = null;
+                updates[`${seatPath}/bookingId`] = null;
+                updates[`${seatPath}/occupiedUntil`] = null;
+              } else if ((now - seatData.bookedAt) > BOOKING_EXPIRY_MS) {
+                // Booking expired
                 updates[`${seatPath}/status`] = 'available';
                 updates[`${seatPath}/bookedBy`] = null;
                 updates[`${seatPath}/bookedAt`] = null;
                 updates[`${seatPath}/bookingId`] = null;
                 updates[`${seatPath}/occupiedUntil`] = null;
 
-                const bookingPath = `bookings/${seatData.bookedBy}/${seatData.bookingId}`;
-                updates[`${bookingPath}/status`] = 'expired';
+                // Only try to update booking if it's the current user's booking
+                if (seatData.bookedBy === user?.uid) {
+                  const bookingPath = `bookings/${seatData.bookedBy}/${seatData.bookingId}`;
+                  updates[`${bookingPath}/status`] = 'expired';
+                }
               }
             }
 
-            // Case 2: Handle 'occupied' seats where the user has overstayed or the account is orphaned.
-            if (seatData.status === 'occupied' && seatData.occupiedUntil) {
-                if (now > seatData.occupiedUntil) {
-                    updates[`${seatPath}/status`] = 'available';
-                    updates[`${seatPath}/bookedBy`] = null;
-                    updates[`${seatPath}/bookedAt`] = null;
-                    updates[`${seatPath}/bookingId`] = null;
-                    updates[`${seatPath}/occupiedUntil`] = null;
-
-                    // Also update the corresponding booking to 'completed'
-                    if (seatData.bookedBy && seatData.bookingId) {
-                        const bookingPath = `bookings/${seatData.bookedBy}/${seatData.bookingId}`;
-                        updates[`${bookingPath}/status`] = 'completed';
-                        updates[`${bookingPath}/exitTime`] = new Date(seatData.occupiedUntil).toISOString();
-                    }
+            // Case 2: Handle 'occupied' seats where the user has overstayed
+            if (seatData.status === 'occupied') {
+              // If occupiedUntil is missing or invalid, free the seat after 24 hours from bookedAt
+              if (!seatData.occupiedUntil) {
+                const maxOccupiedTime = seatData.bookedAt ? seatData.bookedAt + (24 * 60 * 60 * 1000) : now;
+                if (now > maxOccupiedTime) {
+                  updates[`${seatPath}/status`] = 'available';
+                  updates[`${seatPath}/bookedBy`] = null;
+                  updates[`${seatPath}/bookedAt`] = null;
+                  updates[`${seatPath}/bookingId`] = null;
+                  updates[`${seatPath}/occupiedUntil`] = null;
                 }
+              } else if (now > seatData.occupiedUntil) {
+                // Normal expiry
+                updates[`${seatPath}/status`] = 'available';
+                updates[`${seatPath}/bookedBy`] = null;
+                updates[`${seatPath}/bookedAt`] = null;
+                updates[`${seatPath}/bookingId`] = null;
+                updates[`${seatPath}/occupiedUntil`] = null;
+
+                // Only try to update booking if it's the current user's booking
+                if (seatData.bookedBy === user?.uid && seatData.bookingId) {
+                  const bookingPath = `bookings/${seatData.bookedBy}/${seatData.bookingId}`;
+                  updates[`${bookingPath}/status`] = 'completed';
+                  updates[`${bookingPath}/exitTime`] = new Date(seatData.occupiedUntil).toISOString();
+                }
+              }
             }
           });
         });
 
         if (Object.keys(updates).length > 0) {
-          update(ref(db), updates);
+          update(ref(db), updates).catch(error => {
+            console.error("Failed to update seats:", error);
+          });
         }
       }
       
@@ -127,39 +151,80 @@ export function SeatMap() {
     return () => off(seatsRef, 'value', listener);
   }, [initializeSeats, toast, user]);
 
+  const getSeatCounts = (floor: string) => {
+    const floorSeats = seats[floor.toLowerCase()] || {};
+    const counts = { available: 0, booked: 0, occupied: 0 };
+    Object.values(floorSeats).forEach((seat) => {
+      counts[seat.status]++;
+    });
+    return counts;
+  };
+
   return (
-    <>
+    <div className="w-full max-w-7xl mx-auto space-y-6">
       <Tabs defaultValue="ground" className="w-full">
         <div className="flex justify-center items-center mb-6">
-          <TabsList>
-            {FLOORS.map(floor => (
-              <TabsTrigger key={floor} value={floor.toLowerCase()}>{floor} Floor</TabsTrigger>
-            ))}
+          <TabsList className="grid w-full max-w-2xl grid-cols-2 sm:grid-cols-4 h-auto">
+            {FLOORS.map(floor => {
+              const counts = loading ? null : getSeatCounts(floor);
+              return (
+                <TabsTrigger 
+                  key={floor} 
+                  value={floor.toLowerCase()} 
+                  className="flex flex-col gap-1 py-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  <span className="font-semibold text-sm sm:text-base">{floor}</span>
+                  {counts && (
+                    <span className="text-xs opacity-80">
+                      {counts.available}/{SEATS_PER_FLOOR}
+                    </span>
+                  )}
+                </TabsTrigger>
+              );
+            })}
           </TabsList>
         </div>
+        
         {loading ? (
-          <div className="grid grid-cols-5 md:grid-cols-10 gap-4 p-4">
-            {Array.from({ length: SEATS_PER_FLOOR }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+          <div className="bg-card rounded-lg border p-4">
+            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-10 gap-2 sm:gap-3">
+              {Array.from({ length: SEATS_PER_FLOOR }).map((_, i) => (
+                <Skeleton key={i} className="aspect-square rounded-lg" />
+              ))}
+            </div>
           </div>
         ) : (
           FLOORS.map(floor => (
-            <TabsContent key={floor} value={floor.toLowerCase()}>
-              <div className="p-4 bg-card rounded-lg border shadow-sm">
-                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-4">
-                  {Object.entries(seats[floor.toLowerCase()] || {}).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)).map(([seatId, seatData]) => (
-                    <Seat key={seatId} id={seatId} status={seatData.status} />
-                  ))}
+            <TabsContent key={floor} value={floor.toLowerCase()} className="mt-0">
+              <div className="bg-card rounded-lg border p-3 sm:p-4 md:p-6">
+                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-10 gap-2 sm:gap-3 md:gap-4">
+                  {Object.entries(seats[floor.toLowerCase()] || {})
+                    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+                    .map(([seatId, seatData]) => (
+                      <Seat key={seatId} id={seatId} status={seatData.status} />
+                    ))}
                 </div>
               </div>
             </TabsContent>
           ))
         )}
       </Tabs>
-      <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-6 text-sm">
-        <div className="flex items-center space-x-2"><div className="w-4 h-4 rounded-lg bg-card border-2 border-primary/80"></div><span>Available</span></div>
-        <div className="flex items-center space-x-2"><div className="w-4 h-4 rounded-lg bg-accent/80 border-2 border-accent"></div><span>Booked</span></div>
-        <div className="flex items-center space-x-2"><div className="w-4 h-4 rounded-lg bg-green-500/80 border-2 border-green-600"></div><span>Occupied</span></div>
+      
+      {/* Legend */}
+      <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm bg-muted/50 rounded-lg p-4">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-card border-2 border-primary/80"></div>
+          <span className="font-medium">Available</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-accent/80 border-2 border-accent"></div>
+          <span className="font-medium">Booked</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-green-500/80 border-2 border-green-600"></div>
+          <span className="font-medium">Occupied</span>
+        </div>
       </div>
-    </>
+    </div>
   );
 }

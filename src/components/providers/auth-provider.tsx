@@ -24,17 +24,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
+    // Set a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+      }
+    }, 5000); // 5 second timeout
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
+      clearTimeout(timeout);
+    }, (error) => {
+      console.error("Auth state change error:", error);
+      setLoading(false);
+      clearTimeout(timeout);
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      unsubscribe();
+      clearTimeout(timeout);
+    };
+  }, [loading]);
 
   const logout = async () => {
-    await signOut(auth);
-    router.push('/');
+    try {
+      await signOut(auth);
+      router.push('/');
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   return (

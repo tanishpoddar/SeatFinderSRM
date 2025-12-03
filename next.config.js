@@ -1,11 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   images: {
     remotePatterns: [
@@ -22,6 +21,15 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
+  },
+  // Performance optimizations
+  reactStrictMode: true,
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  // Reduce bundle size
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'date-fns'],
   },
 };
 

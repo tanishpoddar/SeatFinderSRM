@@ -1,6 +1,7 @@
 
 "use client";
 
+import React from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import type { SeatStatus } from '@/types';
@@ -17,7 +18,7 @@ const seatVariants = {
   occupied: 'bg-green-500/80 text-green-50 border-green-600 cursor-not-allowed shadow-md shadow-green-500/10',
 };
 
-export function Seat({ id, status }: SeatProps) {
+const SeatComponent = ({ id, status }: SeatProps) => {
   const isAvailable = status === 'available';
 
   const content = (
@@ -41,4 +42,7 @@ export function Seat({ id, status }: SeatProps) {
         {content}
     </Link>
   );
-}
+};
+
+// Memoize to prevent unnecessary re-renders
+export const Seat = React.memo(SeatComponent);
