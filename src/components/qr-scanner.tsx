@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { LogIn, LogOut, Camera, CameraOff, Loader2, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import jsQR from 'jsqr';
 
 type ScanMode = 'entry' | 'exit';
 
@@ -170,14 +171,48 @@ export function QrScanner() {
 
     setIsProcessing(true);
     try {
-      const scanner = new Html5Qrcode('qr-file-reader');
-      const decodedText = await scanner.scanFile(file, true);
-      await processQRCode(decodedText);
+      // Create an image element
+      const img = new Image();
+      const imageUrl = URL.createObjectURL(file);
+      
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = imageUrl;
+      });
+
+      // Create canvas and draw image
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        throw new Error('Could not get canvas context');
+      }
+
+      ctx.drawImage(img, 0, 0);
+      
+      // Get image data
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      
+      // Scan for QR code
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "dontInvert",
+      });
+
+      URL.revokeObjectURL(imageUrl);
+
+      if (code) {
+        await processQRCode(code.data);
+      } else {
+        throw new Error('No QR code found in image');
+      }
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Scan Error',
-        description: 'Could not read QR code from image. Please try again.',
+        description: error.message || 'Could not read QR code from image. Please try again.',
       });
     } finally {
       setIsProcessing(false);
@@ -310,9 +345,6 @@ export function QrScanner() {
           onChange={handleFileUpload}
           className="hidden"
         />
-        
-        {/* Hidden div for file scanning */}
-        <div id="qr-file-reader" className="hidden"></div>
 
         {/* Instructions */}
         <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
