@@ -104,3 +104,23 @@
     background: hsl(var(--primary));
   }
 }
+
+/* Fix for html5-qrcode camera preview */
+#qr-reader video {
+  width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  border-radius: 0.5rem;
+}
+
+#qr-reader__dashboard_section {
+  display: none !important;
+}
+
+#qr-reader__scan_region {
+  border: none !important;
+}
+
+#qr-reader__camera_selection {
+  display: none !important;
+}

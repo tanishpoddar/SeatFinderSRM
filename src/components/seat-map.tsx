@@ -2,10 +2,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ref, onValue, off, set, update } from 'firebase/database';
+import { ref, onValue, off, set, update, query, orderByChild, equalTo } from 'firebase/database';
 import { auth, db } from '@/lib/firebase';
 import { Seat } from '@/components/seat';
-import type { Seat as SeatType } from '@/types';
+import type { Seat as SeatType, Booking } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,6 +17,7 @@ const SEATS_PER_FLOOR = 50;
 export function SeatMap() {
   const [seats, setSeats] = useState<Record<string, Record<string, SeatType>>>({});
   const [loading, setLoading] = useState(true);
+  const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -44,6 +45,28 @@ export function SeatMap() {
       toast({ variant: 'destructive', title: "Database Error", description: `Failed to initialize seats: ${error.message}` });
     }
   }, [toast]);
+
+  // Listen for user's active booking
+  useEffect(() => {
+    if (!user) {
+      setActiveBooking(null);
+      return;
+    }
+
+    const activeBookingQuery = query(ref(db, `bookings/${user.uid}`), orderByChild('status'), equalTo('booked'));
+    
+    const listener = onValue(activeBookingQuery, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const [bookingId, bookingData] = Object.entries(data)[0];
+        setActiveBooking({ id: bookingId, ...(bookingData as any) });
+      } else {
+        setActiveBooking(null);
+      }
+    });
+
+    return () => off(activeBookingQuery, 'value', listener);
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -201,7 +224,14 @@ export function SeatMap() {
                   {Object.entries(seats[floor.toLowerCase()] || {})
                     .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
                     .map(([seatId, seatData]) => (
-                      <Seat key={seatId} id={seatId} status={seatData.status} />
+                      <Seat 
+                        key={seatId} 
+                        id={seatId} 
+                        status={seatData.status}
+                        bookedBy={seatData.bookedBy}
+                        currentUserId={user?.uid}
+                        userHasActiveBooking={!!activeBooking}
+                      />
                     ))}
                 </div>
               </div>
@@ -224,6 +254,12 @@ export function SeatMap() {
           <div className="w-5 h-5 rounded-md bg-green-500/80 border-2 border-green-600"></div>
           <span className="font-medium">Occupied</span>
         </div>
+        {activeBooking && (
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md bg-yellow-500/80 border-2 border-yellow-600"></div>
+            <span className="font-medium">Your Booking</span>
+          </div>
+        )}
       </div>
     </div>
   );

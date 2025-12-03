@@ -23,6 +23,7 @@ import QRCode from 'react-qr-code';
 import { Button } from './ui/button';
 import { Download, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import QRCodeLib from 'qrcode';
 
 function ActiveBookingCard({ booking }: { booking: Booking }) {
     const { user } = useAuth();
@@ -55,26 +56,146 @@ function ActiveBookingCard({ booking }: { booking: Booking }) {
     }, [booking]);
 
 
-    const downloadQRCode = () => {
-        const svg = document.getElementById("DashboardQRCode");
-        if (svg) {
-          const svgData = new XMLSerializer().serializeToString(svg);
+    const downloadQRCode = async () => {
+        if (!user) return;
+
+        try {
           const canvas = document.createElement("canvas");
           const ctx = canvas.getContext("2d");
-          if (ctx) {
-            const img = new Image();
-            img.onload = () => {
-              canvas.width = img.width;
-              canvas.height = img.height;
-              ctx.drawImage(img, 0, 0);
-              const pngFile = canvas.toDataURL("image/png");
-              const downloadLink = document.createElement("a");
-              downloadLink.download = `SeatFinderSRM-QR-${booking.seatId}.png`;
-              downloadLink.href = pngFile;
-              downloadLink.click();
-            };
-            img.src = "data:image/svg+xml;base64," + btoa(svgData);
+          if (!ctx) return;
+
+          // Set canvas size for high quality
+          canvas.width = 800;
+          canvas.height = 1000;
+
+          // Background - dark like library seats page
+          ctx.fillStyle = '#1e293b'; // Dark slate background
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // Load and draw logo
+          const logo = new Image();
+          logo.crossOrigin = "anonymous";
+          logo.src = '/images/logo.png';
+          
+          await new Promise((resolve) => {
+            logo.onload = resolve;
+            logo.onerror = resolve; // Continue even if logo fails
+          });
+
+          // Draw logo at top
+          if (logo.complete && logo.width > 0) {
+            const logoSize = 80;
+            ctx.drawImage(logo, (canvas.width - logoSize) / 2, 40, logoSize, logoSize);
           }
+
+          // Site name
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 42px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('SeatFinderSRM', canvas.width / 2, 160);
+
+          // Subtitle
+          ctx.font = '20px Arial';
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText('Library Seat Booking', canvas.width / 2, 190);
+
+          // White card background for QR and details
+          ctx.fillStyle = '#ffffff';
+          ctx.roundRect(50, 230, canvas.width - 100, 680, 20);
+          ctx.fill();
+
+          // Black placeholder box for QR code with padding
+          const qrBoxSize = 360;
+          const qrBoxX = (canvas.width - qrBoxSize) / 2;
+          ctx.fillStyle = '#000000';
+          ctx.roundRect(qrBoxX, 250, qrBoxSize, qrBoxSize, 10);
+          ctx.fill();
+
+          // Booking details FIRST
+          const bookingTime = new Date(booking.bookingTime);
+          const duration = booking.duration || 60;
+          const endDateTime = new Date(bookingTime.getTime() + duration * 60000);
+          
+          ctx.fillStyle = '#1e293b';
+          ctx.font = 'bold 28px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(`Seat ${booking.seatId}`, canvas.width / 2, 620);
+
+        // Details box
+        ctx.fillStyle = '#f1f5f9';
+        ctx.roundRect(80, 650, canvas.width - 160, 230, 15);
+        ctx.fill();
+
+        // Detail items
+        const details = [
+          { label: 'Booked By', value: user.email?.split('@')[0] || 'Student' },
+          { label: 'Booking Time', value: bookingTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) },
+          { label: 'Duration', value: `${duration} minutes` },
+          { label: 'End Time', value: endDateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) },
+        ];
+
+        ctx.textAlign = 'left';
+        let yPos = 690;
+        details.forEach((detail) => {
+          ctx.fillStyle = '#64748b';
+          ctx.font = '16px Arial';
+          ctx.fillText(detail.label, 110, yPos);
+          
+          ctx.fillStyle = '#1e293b';
+          ctx.font = 'bold 18px Arial';
+          ctx.fillText(detail.value, 110, yPos + 25);
+          
+          yPos += 55;
+        });
+
+          // Footer
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '16px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText('Scan this QR code at the library entrance', canvas.width / 2, 950);
+
+          // NOW draw QR code LAST so it's on top
+          // White background for QR with padding
+          const qrWhiteBg = 320;
+          const qrWhiteBgX = (canvas.width - qrWhiteBg) / 2;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(qrWhiteBgX, 270, qrWhiteBg, qrWhiteBg);
+
+          // Generate QR code directly using qrcode library
+          const qrData = JSON.stringify({bookingId: booking.id, userId: user?.uid, seatId: booking.seatId});
+          const qrDataUrl = await QRCodeLib.toDataURL(qrData, {
+            width: 300,
+            margin: 0,
+            color: {
+              dark: '#000000',
+              light: '#ffffff'
+            }
+          });
+
+          // Load and draw QR code
+          const qrImg = new Image();
+          await new Promise<void>((resolve, reject) => {
+            qrImg.onload = () => resolve();
+            qrImg.onerror = (e) => {
+              console.error('QR Image load error:', e);
+              reject(new Error('Failed to load QR'));
+            };
+            qrImg.src = qrDataUrl;
+          });
+
+          // Draw QR code on white background - LAST so it's on top
+          const qrSize = 300;
+          const qrX = (canvas.width - qrSize) / 2;
+          ctx.drawImage(qrImg, qrX, 280, qrSize, qrSize);
+
+          // Download
+          const pngFile = canvas.toDataURL("image/png");
+          const downloadLink = document.createElement("a");
+          downloadLink.download = `SeatFinderSRM-${booking.seatId}-${bookingTime.toISOString().split('T')[0]}.png`;
+          downloadLink.href = pngFile;
+          downloadLink.click();
+        } catch (error) {
+          console.error('QR Download error:', error);
         }
       };
     
@@ -108,7 +229,10 @@ function ActiveBookingCard({ booking }: { booking: Booking }) {
                      <p className="text-muted-foreground -mt-1">Booked for {booking.duration} minutes.</p>
                      <Button onClick={downloadQRCode} className="mt-4 w-full md:w-auto">
                         <Download className="mr-2 h-4 w-4" /> Download QR Code
-                    </Button>
+                     </Button>
+                     <p className="text-xs text-muted-foreground mt-2">
+                       To cancel this booking, go to the seat map and click on your booked seat.
+                     </p>
                 </div>
             </CardContent>
         </Card>

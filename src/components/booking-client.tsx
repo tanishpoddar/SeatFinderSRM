@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import QRCode from 'react-qr-code';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import QRCodeLib from 'qrcode';
 
 export function BookingClient({ seatId, activeBooking }: { seatId: string, activeBooking: Booking | null }) {
   const { user } = useAuth();
@@ -114,11 +115,54 @@ export function BookingClient({ seatId, activeBooking }: { seatId: string, activ
   }, [booking]);
 
 
+  const handleCancelBooking = async () => {
+    if (!user || !booking || !seat) return;
+    
+    // Only allow canceling if it's the user's own booking and status is 'booked'
+    if (booking.userId !== user.uid) {
+      toast({ variant: 'destructive', title: 'Unauthorized', description: 'You can only cancel your own bookings.' });
+      return;
+    }
+
+    if (booking.status !== 'booked') {
+      toast({ variant: 'destructive', title: 'Cannot Cancel', description: 'Only pending bookings can be cancelled.' });
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      const updates: {[key: string]: any} = {};
+      updates[`/seats/${floor}/${seatId}/status`] = 'available';
+      updates[`/seats/${floor}/${seatId}/bookedBy`] = null;
+      updates[`/seats/${floor}/${seatId}/bookedAt`] = null;
+      updates[`/seats/${floor}/${seatId}/bookingId`] = null;
+      updates[`/bookings/${user.uid}/${booking.id}/status`] = 'expired';
+      
+      await update(ref(db), updates);
+      
+      toast({ 
+        title: "Booking Cancelled", 
+        description: `Seat ${seatId} is now available again.` 
+      });
+      
+      router.push('/seats');
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Cancellation failed', description: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBooking = async () => {
     if (!user || !seat || seat.status !== 'available') return;
     
     if (activeBooking) {
-        toast({ variant: 'destructive', title: 'Active Booking Exists', description: `You already have an active booking for seat ${activeBooking.seatId}.` });
+        toast({ 
+          variant: 'destructive', 
+          title: 'Active Booking Exists', 
+          description: `You already have an active booking for seat ${activeBooking.seatId}. Please cancel it first.` 
+        });
         return;
     }
 
@@ -181,26 +225,148 @@ export function BookingClient({ seatId, activeBooking }: { seatId: string, activ
     }
   };
 
-  const downloadQRCode = () => {
-    const svg = document.getElementById("QRCode");
-    if (svg) {
-      const svgData = new XMLSerializer().serializeToString(svg);
+  const downloadQRCode = async () => {
+    if (!booking || !user) return;
+
+    try {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
-      if (ctx) {
-        const img = new Image();
-        img.onload = () => {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0);
-          const pngFile = canvas.toDataURL("image/png");
-          const downloadLink = document.createElement("a");
-          downloadLink.download = `SeatFinderSRM-QR-${seatId}.png`;
-          downloadLink.href = pngFile;
-          downloadLink.click();
-        };
-        img.src = "data:image/svg+xml;base64," + btoa(svgData);
+      if (!ctx) return;
+
+      // Set canvas size for high quality
+      canvas.width = 800;
+      canvas.height = 1000;
+
+      // Background - dark like library seats page
+      ctx.fillStyle = '#1e293b'; // Dark slate background
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Load and draw logo
+      const logo = new Image();
+      logo.crossOrigin = "anonymous";
+      logo.src = '/images/logo.png';
+      
+      await new Promise((resolve) => {
+        logo.onload = resolve;
+        logo.onerror = resolve; // Continue even if logo fails
+      });
+
+      // Draw logo at top
+      if (logo.complete && logo.width > 0) {
+        const logoSize = 80;
+        ctx.drawImage(logo, (canvas.width - logoSize) / 2, 40, logoSize, logoSize);
       }
+
+      // Site name
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 42px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('SeatFinderSRM', canvas.width / 2, 160);
+
+      // Subtitle
+      ctx.font = '20px Arial';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('Library Seat Booking', canvas.width / 2, 190);
+
+      // White card background for QR and details
+      ctx.fillStyle = '#ffffff';
+      ctx.roundRect(50, 230, canvas.width - 100, 680, 20);
+      ctx.fill();
+
+      // Black placeholder box for QR code with padding
+      const qrBoxSize = 360;
+      const qrBoxX = (canvas.width - qrBoxSize) / 2;
+      ctx.fillStyle = '#000000';
+      ctx.roundRect(qrBoxX, 250, qrBoxSize, qrBoxSize, 10);
+      ctx.fill();
+
+      // Booking details FIRST (so QR draws on top)
+      const bookingTime = new Date(booking.bookingTime);
+      const duration = booking.duration || 60;
+      const endDateTime = new Date(bookingTime.getTime() + duration * 60000);
+      
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 28px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Seat ${seatId}`, canvas.width / 2, 620);
+
+    // Details box
+    ctx.fillStyle = '#f1f5f9';
+    ctx.roundRect(80, 650, canvas.width - 160, 230, 15);
+    ctx.fill();
+
+    // Detail items
+    const details = [
+      { label: 'Booked By', value: user.email?.split('@')[0] || 'Student' },
+      { label: 'Booking Time', value: bookingTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) },
+      { label: 'Duration', value: `${duration} minutes` },
+      { label: 'End Time', value: endDateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) },
+    ];
+
+    ctx.textAlign = 'left';
+    let yPos = 690;
+    details.forEach((detail) => {
+      ctx.fillStyle = '#64748b';
+      ctx.font = '16px Arial';
+      ctx.fillText(detail.label, 110, yPos);
+      
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 18px Arial';
+      ctx.fillText(detail.value, 110, yPos + 25);
+      
+      yPos += 55;
+    });
+
+      // Footer
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Scan this QR code at the library entrance', canvas.width / 2, 950);
+
+      // NOW draw QR code LAST so it's on top
+      // White background for QR with padding
+      const qrWhiteBg = 320;
+      const qrWhiteBgX = (canvas.width - qrWhiteBg) / 2;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(qrWhiteBgX, 270, qrWhiteBg, qrWhiteBg);
+
+      // Generate QR code directly using qrcode library
+      const qrData = JSON.stringify({bookingId: booking.id, userId: user?.uid, seatId: seatId});
+      
+      const qrDataUrl = await QRCodeLib.toDataURL(qrData, {
+        width: 300,
+        margin: 0,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      });
+
+      // Load and draw QR code
+      const qrImg = new Image();
+      await new Promise<void>((resolve, reject) => {
+        qrImg.onload = () => resolve();
+        qrImg.onerror = (e) => {
+          console.error('QR Image load error:', e);
+          reject(new Error('Failed to load QR'));
+        };
+        qrImg.src = qrDataUrl;
+      });
+
+      // Draw QR code on white background - LAST so it's on top
+      const qrSize = 300;
+      const qrX = (canvas.width - qrSize) / 2;
+      ctx.drawImage(qrImg, qrX, 280, qrSize, qrSize);
+
+      // Download
+      const pngFile = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.download = `SeatFinderSRM-${seatId}-${bookingTime.toISOString().split('T')[0]}.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+    } catch (error) {
+      console.error('QR Download error:', error);
+      toast({ variant: 'destructive', title: 'Download failed', description: 'Could not generate QR code image.' });
     }
   };
 
@@ -264,7 +430,7 @@ export function BookingClient({ seatId, activeBooking }: { seatId: string, activ
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {booking && booking.status === 'booked' ? (
+          {booking && booking.status === 'booked' && booking.seatId === seatId ? (
             <div className="text-center flex flex-col items-center gap-6">
                 <div className="bg-white p-4 rounded-xl shadow-md border w-full max-w-xs mx-auto">
                     <QRCode 
@@ -278,9 +444,44 @@ export function BookingClient({ seatId, activeBooking }: { seatId: string, activ
                     {Math.floor(countdown / 60)}:{(Math.round(countdown) % 60).toString().padStart(2, '0')}
                 </div>
                 <p className="text-muted-foreground -mt-4 text-sm sm:text-base">Time left to check-in</p>
-                 <Button onClick={downloadQRCode} size="lg" className="w-full">
-                    <Download className="mr-2 h-4 w-4" /> Download QR Code
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3 w-full">
+                  <Button onClick={downloadQRCode} size="lg" className="flex-1">
+                      <Download className="mr-2 h-4 w-4" /> Download QR Code
+                  </Button>
+                  <Button onClick={handleCancelBooking} variant="destructive" size="lg" className="flex-1" disabled={loading}>
+                      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Cancel Booking
+                  </Button>
+                </div>
+            </div>
+          ) : booking && booking.status === 'booked' && seat.status === 'booked' && seat.bookedBy === user?.uid ? (
+            // User clicked on their already-booked seat - show cancel option
+            <div className="space-y-6">
+              <Alert variant="default" className="bg-yellow-500/10 border-yellow-500/30">
+                <Info className="h-4 w-4 text-yellow-500" />
+                <AlertTitle className="text-yellow-600 dark:text-yellow-500">Your Booked Seat</AlertTitle>
+                <AlertDescription className="text-sm">
+                  You have already booked this seat. You can cancel this booking if you want to book a different seat.
+                </AlertDescription>
+              </Alert>
+
+              <div className="flex items-center gap-4 p-4 rounded-lg bg-muted">
+                <Armchair className="h-12 w-12 sm:h-16 sm:w-16 text-yellow-500 flex-shrink-0" />
+                <div>
+                  <h3 className="font-bold text-xl sm:text-2xl font-headline">Seat {seatId}</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground">
+                    Status: <span className="text-yellow-500 font-semibold capitalize">Booked by you</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Time remaining: {Math.floor(countdown / 60)}:{(Math.round(countdown) % 60).toString().padStart(2, '0')}
+                  </p>
+                </div>
+              </div>
+
+              <Button onClick={handleCancelBooking} variant="destructive" size="lg" className="w-full" disabled={loading}>
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Cancel This Booking
+              </Button>
             </div>
           ) : (
             <div className="space-y-6">

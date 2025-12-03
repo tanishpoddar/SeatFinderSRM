@@ -236,15 +236,21 @@ export function QrScanner() {
         {/* Scanner Area */}
         <div className={cn(
           "relative rounded-lg border-2 border-dashed overflow-hidden",
-          isScanning ? "border-primary" : "border-muted-foreground/25"
+          isScanning ? "border-primary bg-black" : "border-muted-foreground/25"
         )}>
-          <div id="qr-reader" className={cn(
-            "w-full",
-            !isScanning && "hidden"
-          )}></div>
+          <div 
+            id="qr-reader" 
+            className={cn(
+              "w-full",
+              !isScanning && "hidden"
+            )}
+            style={{
+              border: 'none',
+            }}
+          ></div>
           
           {!isScanning && (
-            <div className="flex flex-col items-center justify-center py-16 px-4">
+            <div className="flex flex-col items-center justify-center py-16 px-4 bg-muted/30">
               <Camera className="h-16 w-16 text-muted-foreground/50 mb-4" />
               <p className="text-sm text-muted-foreground text-center mb-4">
                 Click the button below to start scanning
