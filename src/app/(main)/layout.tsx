@@ -218,24 +218,44 @@ export default function MainLayout({
       </main>
 
       {/* Footer */}
-      <footer className="border-t py-6 md:py-8">
-        <div className="w-full max-w-7xl mx-auto text-center text-sm text-muted-foreground px-4">
-          <p>
-            Made with{' '}
-            <span className="text-red-500">❤</span>
-            {' '}by{' '}
-            <a href="https://github.com/nidhi-nayana" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
-              Nidhi
-            </a>
-            ,{' '}
-            <a href="https://github.com/tanishpoddar" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
-              Tanish
-            </a>
-            {' '}and{' '}
-            <a href="https://github.com/nishant-codess" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
-              Nishant
-            </a>
-          </p>
+      <footer className="border-t py-6 md:py-8 bg-muted/30">
+        <div className="w-full max-w-7xl mx-auto px-4">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex items-center gap-2">
+              <Image 
+                src="/images/logo.png"
+                width={24}
+                height={24}
+                alt="SeatFinderSRM"
+                className="rounded-full"
+              />
+              <span className="font-headline font-semibold">SeatFinderSRM</span>
+            </div>
+            
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p>Developed under Department of Computing Technologies</p>
+              <p>© {new Date().getFullYear()} SRM Institute of Science and Technology. All rights reserved.</p>
+            </div>
+            
+            <div className="text-xs text-muted-foreground">
+              <p>
+                Made with{' '}
+                <span className="text-red-500">❤</span>
+                {' '}by{' '}
+                <a href="https://github.com/nidhi-nayana" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
+                  Nidhi
+                </a>
+                ,{' '}
+                <a href="https://github.com/tanishpoddar" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
+                  Tanish
+                </a>
+                {' '}and{' '}
+                <a href="https://github.com/nishant-codess" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
+                  Nishant
+                </a>
+              </p>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

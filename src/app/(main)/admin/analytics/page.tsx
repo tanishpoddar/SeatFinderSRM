@@ -13,14 +13,70 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 import type { Booking, Seat } from '@/types';
 
 export default function AnalyticsPage() {
+  const { toast } = useToast();
   const [startDate, setStartDate] = useState<Date>(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(false);
   const [analytics, setAnalytics] = useState<any>(null);
   const [trends, setTrends] = useState<any>(null);
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
+
+  const handleStartDateChange = (date: Date | undefined) => {
+    if (!date) return;
+    
+    // Validate: can't select future dates
+    if (date > new Date()) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Date',
+        description: 'Cannot select future dates',
+      });
+      return;
+    }
+    
+    // If new start date is after end date, adjust end date
+    if (date > endDate) {
+      setEndDate(date);
+      toast({
+        title: 'Dates Adjusted',
+        description: 'End date was adjusted to match start date',
+      });
+    }
+    setStartDate(date);
+    setStartDateOpen(false);
+  };
+
+  const handleEndDateChange = (date: Date | undefined) => {
+    if (!date) return;
+    
+    // Validate: can't select future dates
+    if (date > new Date()) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Date',
+        description: 'Cannot select future dates',
+      });
+      return;
+    }
+    
+    // Validate: end date must be after start date
+    if (date < startDate) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Date Range',
+        description: 'End date must be after start date',
+      });
+      return;
+    }
+    
+    setEndDate(date);
+    setEndDateOpen(false);
+  };
 
   const fetchAnalytics = async () => {
     setLoading(true);
@@ -237,41 +293,54 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     fetchAnalytics();
-  }, []);
+  }, [startDate, endDate]);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4">
         <h1 className="text-2xl sm:text-3xl font-bold">Analytics Dashboard</h1>
-        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn('justify-start text-left font-normal w-full sm:w-auto')}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">{format(startDate, 'PPP')}</span>
-                <span className="sm:hidden">{format(startDate, 'PP')}</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar mode="single" selected={startDate} onSelect={(date) => date && setStartDate(date)} />
-            </PopoverContent>
-          </Popover>
-          <span className="hidden sm:flex items-center">to</span>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn('justify-start text-left font-normal w-full sm:w-auto')}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">{format(endDate, 'PPP')}</span>
-                <span className="sm:hidden">{format(endDate, 'PP')}</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar mode="single" selected={endDate} onSelect={(date) => date && setEndDate(date)} />
-            </PopoverContent>
-          </Popover>
-          <Button onClick={fetchAnalytics} disabled={loading} className="w-full sm:w-auto">
-            {loading ? 'Loading...' : 'Refresh'}
-          </Button>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+            <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="justify-start text-left font-normal w-full sm:w-[240px]">
+                  <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{format(startDate, 'PPP')}</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar 
+                  mode="single" 
+                  selected={startDate} 
+                  onSelect={handleStartDateChange}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            
+            <span className="text-sm text-muted-foreground self-center">to</span>
+            
+            <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="justify-start text-left font-normal w-full sm:w-[240px]">
+                  <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{format(endDate, 'PPP')}</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar 
+                  mode="single" 
+                  selected={endDate} 
+                  onSelect={handleEndDateChange}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            
+            <Button onClick={fetchAnalytics} disabled={loading} className="w-full sm:w-auto">
+              {loading ? 'Loading...' : 'Apply'}
+            </Button>
+          </div>
         </div>
       </div>
 

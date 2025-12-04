@@ -36,7 +36,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, UserPlus, Loader2 } from "lucide-react";
+import { LogIn, UserPlus, Loader2, Eye, EyeOff } from "lucide-react";
 
 const authSchema = z.object({
   email: z.string().email().refine(email => email.endsWith('@srmist.edu.in'), {
@@ -54,6 +54,8 @@ type AuthFormValues = z.infer<typeof authSchema>;
 export function AuthForm() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [showSignInPassword, setShowSignInPassword] = useState(false);
+  const [showSignUpPassword, setShowSignUpPassword] = useState(false);
 
   const signInForm = useForm<AuthFormValues>({
     resolver: zodResolver(authSchema),
@@ -142,7 +144,20 @@ export function AuthForm() {
                   <FormField control={signInForm.control} name="password" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Password</FormLabel>
-                      <FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl>
+                      <FormControl>
+                        <div className="relative">
+                          <Input type={showSignInPassword ? "text" : "password"} placeholder="••••••••" {...field} />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowSignInPassword(!showSignInPassword)}
+                          >
+                            {showSignInPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -167,7 +182,20 @@ export function AuthForm() {
                   <FormField control={signUpForm.control} name="password" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Password</FormLabel>
-                      <FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl>
+                      <FormControl>
+                        <div className="relative">
+                          <Input type={showSignUpPassword ? "text" : "password"} placeholder="••••••••" {...field} />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowSignUpPassword(!showSignUpPassword)}
+                          >
+                            {showSignUpPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />

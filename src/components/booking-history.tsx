@@ -336,11 +336,22 @@ export function BookingHistory() {
                     const entryDate = booking.entryTime ? new Date(booking.entryTime) : null;
                     const exitDate = booking.exitTime ? new Date(booking.exitTime) : null;
                     
+                    // Calculate actual duration from entry and exit times for completed bookings
+                    let displayDuration = 'N/A';
+                    if (entryDate && exitDate && !isNaN(entryDate.getTime()) && !isNaN(exitDate.getTime())) {
+                      const durationMs = exitDate.getTime() - entryDate.getTime();
+                      const durationMins = Math.round(durationMs / 60000);
+                      displayDuration = `${durationMins} mins`;
+                    } else if (booking.duration) {
+                      // For pending/active bookings, show planned duration
+                      displayDuration = `${booking.duration} mins`;
+                    }
+                    
                     return (
                     <TableRow key={booking.id}>
                       <TableCell className="font-medium">{booking.seatId}</TableCell>
                       <TableCell>{!isNaN(bookingDate.getTime()) ? format(bookingDate, "PPp") : '—'}</TableCell>
-                      <TableCell>{booking.duration ? `${booking.duration} mins` : 'N/A'}</TableCell>
+                      <TableCell>{displayDuration}</TableCell>
                       <TableCell>{entryDate && !isNaN(entryDate.getTime()) ? format(entryDate, "p") : '—'}</TableCell>
                       <TableCell>{exitDate && !isNaN(exitDate.getTime()) ? format(exitDate, "p") : '—'}</TableCell>
                       <TableCell className="text-right">

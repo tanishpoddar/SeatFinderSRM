@@ -132,95 +132,168 @@ export default function SeatsPage() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Seat Management</h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Seat Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-4 gap-4">
-            {seats.length === 0 ? (
-              <p className="col-span-4 text-center text-muted-foreground">No seats available</p>
-            ) : (
-              seats.map((seat) => {
-                const statusColors: Record<string, string> = {
-                  available: 'border-green-500 hover:bg-green-50 dark:hover:bg-green-950',
-                  reserved: 'border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950',
-                  occupied: 'border-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-950',
-                  maintenance: 'border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950',
-                  'out-of-service': 'border-red-500 hover:bg-red-50 dark:hover:bg-red-950',
-                };
-                
-                return (
-                <Dialog key={seat.id} open={dialogOpen && selectedSeat?.id === seat.id} onOpenChange={(open) => {
-                  setDialogOpen(open);
-                  if (!open) {
-                    setSelectedSeat(null);
-                    setMaintenanceReason('');
-                    setExpectedRestoration('');
-                  }
-                }}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={`h-20 ${statusColors[seat.status] || ''}`}
-                      onClick={() => {
-                        setSelectedSeat(seat);
-                        setDialogOpen(true);
-                      }}
-                    >
-                      <div className="text-center">
-                        <div className="font-bold">{seat.id}</div>
-                        <div className="text-xs text-muted-foreground capitalize">{seat.status}</div>
-                        {seat.floor && <div className="text-xs text-muted-foreground">Floor: {seat.floor}</div>}
-                      </div>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Seat {seat.number}</DialogTitle>
-                      <DialogDescription>Manage seat maintenance</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="reason">Reason</Label>
-                        <Textarea
-                          id="reason"
-                          value={maintenanceReason}
-                          onChange={(e) => setMaintenanceReason(e.target.value)}
-                          placeholder="Enter maintenance reason..."
-                          className="mt-1.5"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="restoration">Expected Restoration Date & Time</Label>
-                        <Input
-                          id="restoration"
-                          type="datetime-local"
-                          value={expectedRestoration}
-                          onChange={(e) => setExpectedRestoration(e.target.value)}
-                          className="mt-1.5"
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter className="flex gap-2">
-                      <Button onClick={() => handleMarkMaintenance(seat.id, 'maintenance')}>
-                        Mark Maintenance
-                      </Button>
-                      <Button variant="destructive" onClick={() => handleMarkMaintenance(seat.id, 'out-of-service')}>
-                        Out of Service
-                      </Button>
-                      <Button variant="outline" onClick={() => handleMarkMaintenance(seat.id, 'restore')}>
-                        Restore
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                );
-              })
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {seats.length === 0 ? (
+        <Card>
+          <CardContent className="py-8">
+            <p className="text-center text-muted-foreground">No seats available</p>
+          </CardContent>
+        </Card>
+      ) : (
+        // Group seats by floor based on seat ID prefix (G=Ground, F=First, S=Second, T=Third)
+        (() => {
+          const seatsByFloor = seats.reduce((acc, seat) => {
+            // Get floor from seat ID prefix
+            const prefix = seat.id.charAt(0).toUpperCase();
+            let floorKey = '';
+            
+            switch (prefix) {
+              case 'G': floorKey = 'ground'; break;
+              case 'F': floorKey = 'first'; break;
+              case 'S': floorKey = 'second'; break;
+              case 'T': floorKey = 'third'; break;
+              default: floorKey = 'unknown'; break;
+            }
+            
+            if (!acc[floorKey]) acc[floorKey] = [];
+            acc[floorKey].push(seat);
+            return acc;
+          }, {} as Record<string, Seat[]>);
+
+          const floorOrder = ['ground', 'first', 'second', 'third'];
+          const floorLabels: Record<string, string> = {
+            ground: 'Ground Floor',
+            first: 'First Floor',
+            second: 'Second Floor',
+            third: 'Third Floor',
+          };
+
+          return floorOrder
+            .filter(floor => seatsByFloor[floor] && seatsByFloor[floor].length > 0)
+            .map((floor) => (
+              <Card key={floor}>
+                <CardHeader>
+                  <CardTitle>{floorLabels[floor]}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-4 gap-4">
+                    {seatsByFloor[floor]
+                      .sort((a, b) => a.id.localeCompare(b.id))
+                      .map((seat) => {
+                      const statusColors: Record<string, string> = {
+                        available: 'border-green-500 hover:bg-green-50 dark:hover:bg-green-950',
+                        reserved: 'border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950',
+                        occupied: 'border-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-950',
+                        maintenance: 'border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950',
+                        'out-of-service': 'border-red-500 hover:bg-red-50 dark:hover:bg-red-950',
+                      };
+                      
+                      return (
+                        <Dialog key={seat.id} open={dialogOpen && selectedSeat?.id === seat.id} onOpenChange={(open) => {
+                          setDialogOpen(open);
+                          if (!open) {
+                            setSelectedSeat(null);
+                            setMaintenanceReason('');
+                            setExpectedRestoration('');
+                          }
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={`h-20 ${statusColors[seat.status] || ''}`}
+                              onClick={() => {
+                                setSelectedSeat(seat);
+                                setDialogOpen(true);
+                              }}
+                            >
+                              <div className="text-center">
+                                <div className="font-bold">{seat.id}</div>
+                                <div className="text-xs text-muted-foreground capitalize">{seat.status}</div>
+                              </div>
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Seat {seat.number}</DialogTitle>
+                              <DialogDescription>Manage seat maintenance status</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-5 py-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="reason" className="text-sm font-medium">
+                                  Maintenance Reason
+                                </Label>
+                                <Textarea
+                                  id="reason"
+                                  value={maintenanceReason}
+                                  onChange={(e) => setMaintenanceReason(e.target.value)}
+                                  placeholder="Describe the issue or reason for maintenance..."
+                                  className="min-h-[80px] resize-none"
+                                  rows={3}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="restoration-date" className="text-sm font-medium">
+                                  Expected Restoration Date
+                                </Label>
+                                <Input
+                                  id="restoration-date"
+                                  type="date"
+                                  value={expectedRestoration.split('T')[0] || ''}
+                                  onChange={(e) => {
+                                    const time = expectedRestoration.split('T')[1] || '09:00';
+                                    setExpectedRestoration(`${e.target.value}T${time}`);
+                                  }}
+                                  min={new Date().toISOString().split('T')[0]}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="restoration-time" className="text-sm font-medium">
+                                  Expected Restoration Time
+                                </Label>
+                                <Input
+                                  id="restoration-time"
+                                  type="time"
+                                  value={expectedRestoration.split('T')[1] || '09:00'}
+                                  onChange={(e) => {
+                                    const date = expectedRestoration.split('T')[0] || new Date().toISOString().split('T')[0];
+                                    setExpectedRestoration(`${date}T${e.target.value}`);
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                              <Button 
+                                onClick={() => handleMarkMaintenance(seat.id, 'maintenance')}
+                                className="w-full sm:w-auto"
+                                disabled={!maintenanceReason || !expectedRestoration}
+                              >
+                                Mark Maintenance
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                onClick={() => handleMarkMaintenance(seat.id, 'out-of-service')}
+                                className="w-full sm:w-auto"
+                                disabled={!maintenanceReason || !expectedRestoration}
+                              >
+                                Out of Service
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                onClick={() => handleMarkMaintenance(seat.id, 'restore')}
+                                className="w-full sm:w-auto"
+                              >
+                                Restore to Service
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            ));
+        })()
+      )}
     </div>
   );
 }

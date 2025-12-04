@@ -1,4 +1,11 @@
 import { UsageStatistics } from '@/components/usage-statistics';
+import { createMetadata } from '@/lib/metadata';
+
+export const metadata = createMetadata({
+  title: 'Usage Statistics',
+  description: 'View your library usage statistics, booking history, and study patterns. Track total hours spent and booking trends.',
+  keywords: ['usage stats', 'booking history', 'study hours', 'analytics'],
+});
 
 export default function StatisticsPage() {
   return (

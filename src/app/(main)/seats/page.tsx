@@ -1,4 +1,11 @@
 import { SeatMap } from "@/components/seat-map";
+import { createMetadata } from "@/lib/metadata";
+
+export const metadata = createMetadata({
+  title: 'Library Seats',
+  description: 'Browse and book available library seats in real-time. View seat availability across all floors with interactive seat map.',
+  keywords: ['seat map', 'book seat', 'library availability', 'real-time seats'],
+});
 
 export default function SeatsPage() {
   return (
