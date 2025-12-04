@@ -18,6 +18,8 @@ export function SeatMap() {
   const [seats, setSeats] = useState<Record<string, Record<string, SeatType>>>({});
   const [loading, setLoading] = useState(true);
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -88,8 +90,8 @@ export function SeatMap() {
           Object.entries(seatsOnFloor).forEach(([seatId, seatData]) => {
             const seatPath = `seats/${floor}/${seatId}`;
 
-            // Case 1: Handle 'booked' seats that were not confirmed in time
-            if (seatData.status === 'booked') {
+            // Case 1: Handle 'reserved' seats that were not confirmed in time
+            if (seatData.status === 'reserved') {
               // If bookedAt is missing or invalid, free the seat immediately
               if (!seatData.bookedAt || !seatData.bookedBy || !seatData.bookingId) {
                 updates[`${seatPath}/status`] = 'available';
@@ -155,7 +157,7 @@ export function SeatMap() {
       if (data) {
         setSeats(data);
       } else {
-        console.log("No seats found in database, initializing...");
+        // No seats found, initializing
         initializeSeats();
       }
       setLoading(false);
@@ -176,15 +178,67 @@ export function SeatMap() {
 
   const getSeatCounts = (floor: string) => {
     const floorSeats = seats[floor.toLowerCase()] || {};
-    const counts = { available: 0, booked: 0, occupied: 0 };
+    const counts = { available: 0, reserved: 0, occupied: 0, maintenance: 0, 'out-of-service': 0 };
     Object.values(floorSeats).forEach((seat) => {
-      counts[seat.status]++;
+      if (seat.status in counts) {
+        counts[seat.status as keyof typeof counts]++;
+      }
     });
     return counts;
   };
 
+  const filterSeats = (floorSeats: Record<string, SeatType>) => {
+    return Object.entries(floorSeats).filter(([seatId, seatData]) => {
+      // Search filter
+      if (searchTerm && !seatId.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+      // Availability filter
+      if (showAvailableOnly && seatData.status !== 'available') {
+        return false;
+      }
+      return true;
+    });
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
+      {/* Search and Filter Controls */}
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card rounded-lg border p-4">
+        <div className="flex-1 w-full sm:w-auto">
+          <input
+            type="text"
+            placeholder="Search seat number (e.g., G01, F15)..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 rounded-md border bg-background"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="available-only"
+            checked={showAvailableOnly}
+            onChange={(e) => setShowAvailableOnly(e.target.checked)}
+            className="rounded"
+          />
+          <label htmlFor="available-only" className="text-sm font-medium cursor-pointer">
+            Show available only
+          </label>
+        </div>
+        {(searchTerm || showAvailableOnly) && (
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              setShowAvailableOnly(false);
+            }}
+            className="text-sm text-primary hover:underline"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
       <Tabs defaultValue="ground" className="w-full">
         <div className="flex justify-center items-center mb-6">
           <TabsList className="grid w-full max-w-2xl grid-cols-2 sm:grid-cols-4 h-auto">
@@ -220,20 +274,43 @@ export function SeatMap() {
           FLOORS.map(floor => (
             <TabsContent key={floor} value={floor.toLowerCase()} className="mt-0">
               <div className="bg-card rounded-lg border p-3 sm:p-4 md:p-6">
-                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-10 gap-2 sm:gap-3 md:gap-4">
-                  {Object.entries(seats[floor.toLowerCase()] || {})
-                    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-                    .map(([seatId, seatData]) => (
-                      <Seat 
-                        key={seatId} 
-                        id={seatId} 
-                        status={seatData.status}
-                        bookedBy={seatData.bookedBy}
-                        currentUserId={user?.uid}
-                        userHasActiveBooking={!!activeBooking}
-                      />
-                    ))}
-                </div>
+                {(() => {
+                  const filteredSeats = filterSeats(seats[floor.toLowerCase()] || {});
+                  
+                  if (filteredSeats.length === 0) {
+                    return (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <p>No seats match your search criteria</p>
+                        <button
+                          onClick={() => {
+                            setSearchTerm('');
+                            setShowAvailableOnly(false);
+                          }}
+                          className="mt-2 text-primary hover:underline"
+                        >
+                          Clear filters
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-10 gap-2 sm:gap-3 md:gap-4">
+                      {filteredSeats
+                        .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+                        .map(([seatId, seatData]) => (
+                          <Seat 
+                            key={seatId} 
+                            id={seatId} 
+                            status={seatData.status}
+                            bookedBy={seatData.bookedBy}
+                            currentUserId={user?.uid}
+                            userHasActiveBooking={!!activeBooking}
+                          />
+                        ))}
+                    </div>
+                  );
+                })()}
               </div>
             </TabsContent>
           ))
@@ -248,11 +325,15 @@ export function SeatMap() {
         </div>
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 rounded-md bg-accent/80 border-2 border-accent"></div>
-          <span className="font-medium">Booked</span>
+          <span className="font-medium">Reserved</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 rounded-md bg-green-500/80 border-2 border-green-600"></div>
           <span className="font-medium">Occupied</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-gray-300 dark:bg-gray-700 border-2 border-gray-400 dark:border-gray-600"></div>
+          <span className="font-medium">Maintenance</span>
         </div>
         {activeBooking && (
           <div className="flex items-center gap-2">

@@ -19,38 +19,61 @@ A modern, real-time seat booking system for SRM University libraries, built with
 
 ### 🔐 **Secure Authentication**
 - **SRM-Exclusive Access**: Only `@srmist.edu.in` email addresses allowed
-- **Email Verification Required**: Ensures only verified students can book seats
+- **Automatic User Sync**: User profiles automatically created in database on first login
 - **Secure Firebase Auth**: Industry-standard authentication
+- **Admin Access Control**: Configurable admin emails via environment variables
 
 ### 🗺️ **Interactive Seat Map**
 - **Real-time Updates**: See seat availability instantly across all floors
 - **Visual Status Indicators**: 
   - 🟢 Available - Ready to book
-  - 🟡 Booked - Reserved but not checked in
+  - 🟡 Reserved - Booked but not checked in
   - 🔴 Occupied - Currently in use
+  - 🔧 Maintenance - Under repair
+  - ⛔ Out of Service - Temporarily unavailable
 - **Floor Navigation**: Easy switching between library floors
+- **Search & Filter**: Find seats quickly with advanced filters
 
 ### ⏱️ **Smart Booking System**
 - **Timed Reservations**: Book seats for specific durations
-- **Confirmation Window**: 15-minute grace period to check in
+- **Booking Extension**: Extend your booking if needed
 - **Anti-Hoarding Protection**: Automatic cancellation of unconfirmed bookings
 - **Booking History**: Track all your past and current bookings
+- **Usage Statistics**: View your booking patterns and total hours
 
 ### 📱 **QR Code Check-in**
 - **Unique QR Codes**: Each booking generates a scannable QR code
 - **Quick Check-in**: Scan at library entrance to confirm your seat
+- **Download QR**: Save QR code for offline access
 - **Admin Scanner**: Staff interface for seamless check-in/check-out management
+
+### 💬 **Feedback System**
+- **Submit Feedback**: Report issues or suggest improvements
+- **Category-based**: Technical, Booking, Seat, Facility, or General feedback
+- **Ticket Tracking**: View status of your feedback submissions
+- **Admin Responses**: Get replies from library staff
+
+### 📊 **Admin Dashboard**
+- **Analytics**: Real-time occupancy rates, peak hours, and usage trends
+- **Booking Management**: View, cancel, check-in/out bookings manually
+- **User Management**: Search users, flag/unflag accounts
+- **Seat Management**: Mark seats for maintenance or out of service
+- **Feedback Management**: View and respond to user feedback
+- **Reports**: Generate CSV reports with custom date ranges
+- **Settings**: Configure library operating hours
 
 ### 🔄 **Self-Healing System**
 - **Auto-Cleanup**: Expired bookings automatically freed
 - **Overstay Detection**: Seats released after booking duration ends
 - **Real-time Sync**: All changes reflected instantly across all devices
+- **Automatic Expiry**: Unconfirmed bookings cancelled after grace period
 
 ### 🎨 **Modern UI/UX**
 - **Responsive Design**: Perfect on desktop, tablet, and mobile
 - **Dark/Light Mode**: Easy on the eyes, day or night
 - **Smooth Animations**: Fluid transitions and interactions
 - **Accessible**: Built with accessibility in mind
+- **Mobile-First**: Optimized for mobile devices
 
 
 ## 🎯 How It Works
@@ -78,13 +101,13 @@ graph LR
 8. **Auto Check-out** when time expires or manually check out
 
 
-
 ## 📊 System Capacity
 
-- **Concurrent Users**: Supports 10,000+ simultaneous users
-- **Daily Bookings**: Handles 10-15k bookings per day
+- **Concurrent Users**: Supports 1,000+ simultaneous users
+- **Daily Bookings**: Handles 2,000-5,000 bookings per day
 - **Real-time Updates**: Sub-second latency for seat status changes
 - **Uptime**: 99.9% availability with Firebase infrastructure
+- **Scalability**: Auto-scales with Firebase Realtime Database
 
 ## 🤝 Contributing
 

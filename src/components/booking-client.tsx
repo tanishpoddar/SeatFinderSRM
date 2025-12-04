@@ -87,7 +87,7 @@ export function BookingClient({ seatId, activeBooking }: { seatId: string, activ
   // This useEffect now only handles the visual countdown timer.
   // The actual expiry logic is now centralized in MainLayout.
   useEffect(() => {
-    if (!booking || booking.status !== 'booked') {
+    if (!booking || (booking.status !== 'pending' && booking.status !== 'active')) {
         setCountdown(0);
         return;
     };
@@ -124,8 +124,8 @@ export function BookingClient({ seatId, activeBooking }: { seatId: string, activ
       return;
     }
 
-    if (booking.status !== 'booked') {
-      toast({ variant: 'destructive', title: 'Cannot Cancel', description: 'Only pending bookings can be cancelled.' });
+    if (booking.status !== 'pending' && booking.status !== 'active') {
+      toast({ variant: 'destructive', title: 'Cannot Cancel', description: 'Only pending or active bookings can be cancelled.' });
       return;
     }
 
@@ -196,12 +196,21 @@ export function BookingClient({ seatId, activeBooking }: { seatId: string, activ
       }
 
       const newBookingRef = push(ref(db, `bookings/${user.uid}`));
+      const nowISO = new Date().toISOString();
+      const endTimeISO = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
+      
       const newBookingData: Omit<Booking, 'id'> = {
           seatId: seatId,
           userId: user.uid,
-          bookingTime: new Date().toISOString(),
-          status: 'booked',
-          duration: durationMinutes
+          userName: user.displayName || user.email?.split('@')[0] || 'User',
+          userEmail: user.email || '',
+          bookingTime: nowISO,
+          startTime: nowISO,
+          endTime: endTimeISO,
+          status: 'pending',
+          duration: durationMinutes,
+          createdAt: nowISO,
+          updatedAt: nowISO,
       }
 
       const updates: {[key: string]: any} = {};
@@ -430,7 +439,7 @@ export function BookingClient({ seatId, activeBooking }: { seatId: string, activ
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {booking && booking.status === 'booked' && booking.seatId === seatId ? (
+          {booking && (booking.status === 'pending' || booking.status === 'active') && booking.seatId === seatId ? (
             <div className="text-center flex flex-col items-center gap-6">
                 <div className="bg-white p-4 rounded-xl shadow-md border w-full max-w-xs mx-auto">
                     <QRCode 
@@ -454,7 +463,7 @@ export function BookingClient({ seatId, activeBooking }: { seatId: string, activ
                   </Button>
                 </div>
             </div>
-          ) : booking && booking.status === 'booked' && seat.status === 'booked' && seat.bookedBy === user?.uid ? (
+          ) : booking && (booking.status === 'pending' || booking.status === 'active') && (seat.status === 'reserved' || seat.status === 'occupied') && seat.bookedBy === user?.uid ? (
             // User clicked on their already-booked seat - show cancel option
             <div className="space-y-6">
               <Alert variant="default" className="bg-yellow-500/10 border-yellow-500/30">

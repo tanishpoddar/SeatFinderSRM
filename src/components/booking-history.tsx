@@ -32,7 +32,7 @@ function ActiveBookingCard({ booking }: { booking: Booking }) {
     // This useEffect now only handles the visual countdown timer.
     // The actual expiry logic is now centralized in MainLayout.
     useEffect(() => {
-        if (booking.status !== 'booked') return;
+        if (booking.status !== 'pending' && booking.status !== 'active') return;
 
         const calculateRemaining = () => {
             const bookingTime = new Date(booking.bookingTime).getTime();
@@ -199,7 +199,7 @@ function ActiveBookingCard({ booking }: { booking: Booking }) {
         }
       };
     
-    if (booking.status === 'occupied') {
+    if (booking.status === 'active') {
         return (
              <Alert variant="default" className="mb-6 bg-green-500/10 border-green-500/30">
                 <Info className="h-4 w-4 text-green-500" />
@@ -281,9 +281,9 @@ export function BookingHistory() {
   
   const getBadgeVariant = (status: Booking['status']) => {
     switch (status) {
-      case 'occupied':
+      case 'active':
         return 'default';
-      case 'booked':
+      case 'pending':
         return 'secondary';
       case 'expired':
         return 'destructive';
@@ -294,7 +294,7 @@ export function BookingHistory() {
     }
   };
 
-  const activeBooking = bookings.find(b => b.status === 'booked' || b.status === 'occupied');
+  const activeBooking = bookings.find(b => b.status === 'pending' || b.status === 'active');
 
   return (
     <div className="space-y-6">
@@ -347,8 +347,8 @@ export function BookingHistory() {
                         <Badge 
                           variant={getBadgeVariant(booking.status)}
                           className={cn('capitalize', {
-                            'bg-green-500/80 text-green-950 dark:text-green-50': booking.status === 'occupied',
-                            'bg-yellow-400/80 text-yellow-950 dark:text-yellow-50': booking.status === 'booked',
+                            'bg-green-500/80 text-green-950 dark:text-green-50': booking.status === 'active',
+                            'bg-yellow-400/80 text-yellow-950 dark:text-yellow-50': booking.status === 'pending',
                           })}
                         >
                           {booking.status}

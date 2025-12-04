@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/providers/auth-provider';
 import Link from 'next/link';
@@ -24,6 +24,11 @@ import {
 import { ThemeToggle } from '@/components/theme-toggle';
 import { cn } from '@/lib/utils';
 
+import { getAdminEmails } from '@/lib/admin-config';
+
+// Admin email whitelist - loaded from environment
+const ADMIN_EMAILS = getAdminEmails();
+
 export default function MainLayout({
   children,
 }: {
@@ -34,12 +39,33 @@ export default function MainLayout({
   const pathname = usePathname();
   const [isRedirecting, setIsRedirecting] = React.useState(false);
 
+  // Check if user is admin - memoized to avoid recalculation
+  const isAdmin = useMemo(() => {
+    return user?.email ? ADMIN_EMAILS.includes(user.email) : false;
+  }, [user?.email]);
+
   useEffect(() => {
     if (!loading && !user) {
       setIsRedirecting(true);
       router.replace('/');
     }
   }, [user, loading, router]);
+
+  // Redirect admins to admin dashboard immediately (no 404 shown)
+  useEffect(() => {
+    if (isAdmin && !pathname.startsWith('/admin')) {
+      router.replace('/admin/analytics');
+    }
+  }, [isAdmin, pathname, router]);
+
+  // Show nothing while redirecting (prevents flash of user pages)
+  if (isAdmin && !pathname.startsWith('/admin')) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   // Show loading only while auth is initializing
   if (loading) {
@@ -87,25 +113,27 @@ export default function MainLayout({
             <span className="font-headline text-lg sm:text-xl font-bold hidden sm:inline-block">SeatFinderSRM</span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              return (
-                <Link key={item.href} href={item.href}>
-                  <Button 
-                    variant={isActive ? "default" : "ghost"}
-                    size="sm"
-                    className={cn("gap-2", isActive && "shadow-sm")}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Button>
-                </Link>
-              );
-            })}
-          </nav>
+          {/* Desktop Navigation - Hidden for admins */}
+          {!isAdmin && (
+            <nav className="hidden md:flex items-center gap-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+                return (
+                  <Link key={item.href} href={item.href}>
+                    <Button 
+                      variant={isActive ? "default" : "ghost"}
+                      size="sm"
+                      className={cn("gap-2", isActive && "shadow-sm")}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </Button>
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2">
@@ -122,13 +150,30 @@ export default function MainLayout({
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">SRM Student</p>
+                    <p className="text-sm font-medium leading-none">{isAdmin ? 'Admin' : 'SRM Student'}</p>
                     <p className="text-xs leading-none text-muted-foreground truncate">
                       {user.email}
                     </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {!isAdmin && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/statistics" className="cursor-pointer">
+                        <LayoutGrid className="mr-2 h-4 w-4" />
+                        <span>Usage Statistics</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/feedback" className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Feedback & Support</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
@@ -138,29 +183,31 @@ export default function MainLayout({
           </div>
         </div>
 
-        {/* Mobile Navigation */}
-        <div className="md:hidden border-t">
-          <div className="w-full max-w-7xl mx-auto">
-            <nav className="flex items-center justify-around px-2 py-2">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
-                return (
-                  <Link key={item.href} href={item.href} className="flex-1">
-                    <Button 
-                      variant={isActive ? "default" : "ghost"}
-                      size="sm"
-                      className={cn("w-full gap-1.5", isActive && "shadow-sm")}
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span className="text-xs">{item.label}</span>
-                    </Button>
-                  </Link>
-                );
-              })}
-            </nav>
+        {/* Mobile Navigation - Hidden for admins */}
+        {!isAdmin && (
+          <div className="md:hidden border-t">
+            <div className="w-full max-w-7xl mx-auto">
+              <nav className="flex items-center justify-around px-2 py-2">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link key={item.href} href={item.href} className="flex-1">
+                      <Button 
+                        variant={isActive ? "default" : "ghost"}
+                        size="sm"
+                        className={cn("w-full gap-1.5", isActive && "shadow-sm")}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="text-xs">{item.label}</span>
+                      </Button>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
       {/* Main Content */}
